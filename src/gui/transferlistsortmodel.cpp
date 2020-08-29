@@ -256,17 +256,20 @@ bool TransferListSortModel::lessThan_impl(const QModelIndex &left, const QModelI
 
 bool TransferListSortModel::filterAcceptsRow(const int sourceRow, const QModelIndex &sourceParent) const
 {
-    return matchFilter(sourceRow, sourceParent)
-           && QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
-}
-
-bool TransferListSortModel::matchFilter(const int sourceRow, const QModelIndex &sourceParent) const
-{
     const auto *model = qobject_cast<TransferListModel *>(sourceModel());
     if (!model) return false;
 
     const BitTorrent::TorrentHandle *torrent = model->torrentHandle(model->index(sourceRow, 0, sourceParent));
-    if (!torrent) return false;
+    if (!torrent
+        ||
+        (QSortFilterProxyModel::filterRegExp().isEmpty() && torrent->name().startsWith(QString("[!]"))))
+            return false;
 
+    return matchFilter(torrent)
+           && QSortFilterProxyModel::filterAcceptsRow(sourceRow, sourceParent);
+}
+
+bool TransferListSortModel::matchFilter(const BitTorrent::TorrentHandle *torrent) const
+{
     return m_filter.match(torrent);
 }
