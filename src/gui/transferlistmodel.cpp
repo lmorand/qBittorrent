@@ -142,7 +142,7 @@ TransferListModel::TransferListModel(QObject *parent)
     connect(Session::instance(), &Session::torrentsUpdated, this, &TransferListModel::handleTorrentsUpdated);
 
     connect(Session::instance(), &Session::torrentFinished, this, &TransferListModel::handleTorrentStatusUpdated);
-    connect(Session::instance(), &Session::torrentMetadataLoaded, this, &TransferListModel::handleTorrentStatusUpdated);
+    connect(Session::instance(), &Session::torrentMetadataReceived, this, &TransferListModel::handleTorrentStatusUpdated);
     connect(Session::instance(), &Session::torrentResumed, this, &TransferListModel::handleTorrentStatusUpdated);
     connect(Session::instance(), &Session::torrentPaused, this, &TransferListModel::handleTorrentStatusUpdated);
     connect(Session::instance(), &Session::torrentFinishedChecking, this, &TransferListModel::handleTorrentStatusUpdated);
@@ -316,12 +316,11 @@ QString TransferListModel::displayValue(const BitTorrent::TorrentHandle *torrent
         return tagsList.join(", ");
     };
 
-    const auto progressString = [](qreal progress) -> QString
+    const auto progressString = [](const qreal progress) -> QString
     {
-        progress *= 100;
-        return (static_cast<int>(progress) == 100)
+        return (progress >= 1)
                 ? QString::fromLatin1("100%")
-                : Utils::String::fromDouble(progress, 1) + '%';
+                : Utils::String::fromDouble((progress * 100), 1) + QLatin1Char('%');
     };
 
     const auto statusString = [this](const BitTorrent::TorrentState state, const QString &errorMessage) -> QString
