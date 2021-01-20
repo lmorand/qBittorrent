@@ -55,7 +55,7 @@ public:
 private:
     bool lessThan(const QModelIndex &left, const QModelIndex &right) const override;
     bool filterAcceptsRow(int sourceRow, const QModelIndex &sourceParent) const override;
-    bool matchFilter(const BitTorrent::TorrentHandle *torrent) const;
+    bool matchFilter(const BitTorrent::Torrent *torrent) const;
     bool lessThan_impl(const QModelIndex &left, const QModelIndex &right) const;
 
     TorrentFilter m_filter;
