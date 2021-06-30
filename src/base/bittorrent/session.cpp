@@ -338,6 +338,8 @@ namespace
 #endif
 }
 
+const int addTorrentParamsId = qRegisterMetaType<AddTorrentParams>();
+
 // Session
 
 Session *Session::m_instance = nullptr;
@@ -855,17 +857,13 @@ bool Session::hasTag(const QString &tag) const
 
 bool Session::addTag(const QString &tag)
 {
-    if (!isValidTag(tag))
+    if (!isValidTag(tag) || hasTag(tag))
         return false;
 
-    if (!hasTag(tag))
-    {
-        m_tags.insert(tag);
-        m_storedTags = m_tags.values();
-        emit tagAdded(tag);
-        return true;
-    }
-    return false;
+    m_tags.insert(tag);
+    m_storedTags = m_tags.values();
+    emit tagAdded(tag);
+    return true;
 }
 
 bool Session::removeTag(const QString &tag)
@@ -2081,7 +2079,6 @@ LoadTorrentParams Session::initLoadTorrentParams(const AddTorrentParams &addTorr
     LoadTorrentParams loadTorrentParams;
 
     loadTorrentParams.name = addTorrentParams.name;
-    loadTorrentParams.tags = addTorrentParams.tags;
     loadTorrentParams.firstLastPiecePriority = addTorrentParams.firstLastPiecePriority;
     loadTorrentParams.hasSeedStatus = addTorrentParams.skipChecking; // do not react on 'torrent_finished_alert' when skipping
     loadTorrentParams.contentLayout = addTorrentParams.contentLayout.value_or(torrentContentLayout());
@@ -2093,8 +2090,10 @@ LoadTorrentParams Session::initLoadTorrentParams(const AddTorrentParams &addTorr
     const bool useAutoTMM = addTorrentParams.useAutoTMM.value_or(!isAutoTMMDisabledByDefault());
     if (useAutoTMM)
         loadTorrentParams.savePath = "";
-    else if (addTorrentParams.savePath.trimmed().isEmpty())
+    else if (addTorrentParams.savePath.isEmpty())
         loadTorrentParams.savePath = defaultSavePath();
+    else if (QDir(addTorrentParams.savePath).isRelative())
+        loadTorrentParams.savePath = QDir(defaultSavePath()).absoluteFilePath(addTorrentParams.savePath);
     else
         loadTorrentParams.savePath = normalizePath(addTorrentParams.savePath);
 
@@ -2103,6 +2102,12 @@ LoadTorrentParams Session::initLoadTorrentParams(const AddTorrentParams &addTorr
         loadTorrentParams.category = "";
     else
         loadTorrentParams.category = addTorrentParams.category;
+
+    for (const QString &tag : addTorrentParams.tags)
+    {
+        if (hasTag(tag) || addTag(tag))
+            loadTorrentParams.tags.insert(tag);
+    }
 
     return loadTorrentParams;
 }
@@ -4736,8 +4741,9 @@ void Session::handleFileErrorAlert(const lt::file_error_alert *p)
     if (!torrent)
         return;
 
-    const TorrentID id = torrent->id();
+    torrent->handleAlert(p);
 
+    const TorrentID id = torrent->id();
     if (!m_recentErroredTorrents.contains(id))
     {
         m_recentErroredTorrents.insert(id);
